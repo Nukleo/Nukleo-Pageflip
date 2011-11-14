@@ -1,0 +1,14 @@
+Nukleo Pageflip - A jQuery pageflip (page turning) plugin
+
+This plugin is meant to be a replacement of similar Flash based plugins. It's not nearly as feature-rich as some of those are but it works on iPhone, iPad, iPod Touch and is, of course built using standard HTML, CSS and jQuery
+
+It is meant to stay very simple and lacks a couple of basic features that will be added shortly (when I have time^^)
+
+@NOTES
+- Tested with jQuery 1.4.4 for the time being... should work on older versions but this needs to be tested.
+- Optionnaly uses George Smith's easing plugin found at http://gsgd.co.uk/sandbox/jquery/easing/
+
+@TODO
+- add direct page linking below the pageflip and in the title area
+- add page zooming
+- make the title zone completly dynamic
