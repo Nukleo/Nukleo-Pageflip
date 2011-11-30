@@ -1,33 +1,37 @@
 /*
- * jQuery nukleo pageflip 0.1
+ * Nukleo Pageflip 0.1
  * Copyright (c) 2011 Erik Berman (nukleo.fr)
- * Licensed under the MIT (MIT-LICENSE.txt)
+ * Licensed under the MIT : http://www.opensource.org/licenses/mit-license.php
  *
  * Simple jQuery pageflip plugin
  *
- * For nicer animation transitions this plugin can use George Smith's easing plugin found at http://gsgd.co.uk/sandbox/jquery/easing/
+ * For nicer animation transitions this plugin uses George Smith's easing plugin found at http://gsgd.co.uk/sandbox/jquery/easing/
  * but this is optional. If you don't use the easing plugin, you need to set the easing option to "swing" or "linear" which are included in jQuery
  *
  * @TODO
- * - ajouter navigateur de pages sous le pageflip
- * - ajouter zoom sur une page
- * - ajouter accès direct a une page sur le head
- * - rendre completement dynamique le texte en head (page x sur x)
+ * - Add direct page access in the head part (dropdown) and make this optional
 */
 ;(function($){
 	$.fn.nukleopageflip = function(options) {
-		
+
 		// default options --------------------------------------------------------------------------------------------------
 		var defaults = {
-			speed:			500,				// animation speed
-			easing:			"easeInOutExpo",	// easing. if easing plugin is being used, if not change to swing or linear
-			shadowOn:		true,				// show the centerfold shadow ?
-			shadowOpacity:	0.5					// opacity of the centerfold shadow
+			speed:				500,				// animation speed
+			easing:				"easeInOutExpo",	// easing. if easing plugin is being used, if not change to swing or linear
+			shadowOn:			true,				// show the centerfold shadow ?
+			shadowOpacity:		0.5,				// opacity of the centerfold shadow
+			resizeOnLoad:		false,				// downsize on load -> usefull for small screens (think smartphone...)
+			vMargin:			10,					// minimum vertical margin from window (used for scaling)
+			hMargin:			80,					// minimum horizontal margin from window (used for scaling)
+			navOpacityStart:	0.5,				// previous and next opacity
+			navOpacityEnd:		1,					// previous and next hover opacity
+			directNav:			true				// direct page navigation below the pageflip
 		};
 		
 		var opts = $.extend(defaults, options);
 		// ------------------------------------------------------------------------------------------------------------------
-		
+
+
 		// variables --------------------------------------------------------------------------------------------------------
 		var $pageflip = $(this);
 		var $wrapper = $pageflip.parent();	// conteneur du pageflip
@@ -37,207 +41,189 @@
 		var currentPage = 0;				// current page
 		var pageWidth = $images.width();	// largeur d'une page (calculé en fonction des images)
 		var pageHeight = $images.height();	// hauteur d'une page (calculé en fonction des images)
+		var urlParam = '';			// parametre d'url pour aller directement à une page
 		// ------------------------------------------------------------------------------------------------------------------
 
 
-		// reset certain styles
+		// Set up some stuff ------------------------------------------------------------------------------------------------
+		// Set styles
 		$pageflip.css({'height': pageHeight, 'overflow':'hidden'});
 		$wrapper.css({'height': pageHeight, 'width':pageWidth*2});
 		$pages.css({'float':'none', 'position':'absolute'});
 
-		// ajoute les boutons de nav
+		// Build, insert and hide navigation buttons
 		var $buttonPrev = $('<a class="previous navbutton" href="#"><<</a>').hide();
 		var $buttonNext = $('<a class="next navbutton" href="#">>></a>').hide();
+		var prevHeight = $buttonPrev.height();
+		var nextHeight = $buttonNext.height();
 		$wrapper.append($buttonPrev, $buttonNext);
 
-		// ombre centrale
+		// TODO: cache button sizes
+
+		// Build, insert and hide centerfold shadow
 		var $shadow = $('<div id="page-shadow">').css({'height':pageHeight, 'left':pageWidth-50, 'opacity':opts.shadowOpacity}).hide();
 		$pageflip.append($shadow);
 
-		// affichage nombre total de pages
+		// get url param to jump to a page
+		var url = document.URL.split('#')[1];
+		if(url != undefined){
+			urlParam = url;
+		}
+		
+		// Build and insert direct page nav
+		if(opts.directNav){
+			var $directNav = $('<div id="pageflip-directnav">').append('<ul>');
+			for(i=0; i<countPages; i++){
+				$('ul', $directNav).append('<li><a href="#" class="jumpTo">'+(i+1)+'</a></li>');
+			}
+			$directNav.insertAfter($wrapper);
+		}
+
+
+		// Display total page count in header
 		$('.totalpages').text(countPages);
 
-		// hover sur les boutons de nav
+		// hover on navigation buttons
 		$('.navbutton').hover(
-			function(){
-				$(this).stop().animate({opacity:1}, 500);
-			},
-			function(){
-				$(this).stop().animate({opacity:0.3}, 500);
-		});
+			function(){$(this).stop().animate({opacity:opts.navOpacityEnd}, opts.speed);},
+			function(){$(this).stop().animate({opacity:opts.navOpacityStart}, opts.speed);}
+		);
+		// ------------------------------------------------------------------------------------------------------------------
 
-		// click sur les boutons précédent // suivant
+
+		// Navigation with the previous and next buttons
 		$('.navbutton').click(function(){
 			// hide stuff before animating
-			$buttonPrev.hide();
-			$buttonNext.hide();
-			$shadow.fadeOut();
+			hideControls();
 			
-			// on a cliqué sur précédent
-			if($(this).is('.previous')){
-				var prev = getNextPreviousPage('previous'); // calcule quelle est la page précédente et y va
-
-				// dernière page, on élargit le cadre puis on anime (grace au callback)
-				if(prev+2 == countPages){
-					$wrapper.animate({
-						'width': pageWidth*2
-					}, 500, opts.easing, function(){
-						flipPrev(prev);
-					});
-					$pageflip.css({'width':pageWidth*2});
-					$pages.eq(prev+2).animate({'left':pageWidth},500, opts.easing);
-				}
-
-				// première page, on anime puis on réduit le cadre (grace au callback)
-				else if(prev == 0){
-					flipPrev(prev, function(){
-						$pages.eq(prev).animate({'left':0},500, opts.easing);
-						$wrapper.animate({'width': pageWidth}, 500, opts.easing, function(){
-							$pageflip.css({'width':pageWidth});
-						});
-					});
-				}
-				// sinon anime normale
-				else {
-					flipPrev(prev);
-				};
-
-				// update de la pagination en head
-				updatePagination(prev);
+			// User clicked the previous button
+			if($(this).is('.previous')) {
+				var prev = getNextPreviousPage('previous'); // get previous page number
+				//console.log('curPage: '+currentPage+' | PrevPage: '+prev);
+				flipPrev(prev);
 			}
 
-			// on a cliqué sur suivant
-			else {
-				var next = getNextPreviousPage('next'); // calcule quelle est la page suivante et y va
-
-				// premiere page, on élargit le cadre puis on anime (grace au callback)
-				if(next-2 == 0){
-					$wrapper.animate({
-						'width': pageWidth*2
-					}, 500, opts.easing, function(){
-						flipNext(next);
-					});
-					$pageflip.css({'width':pageWidth*2});
-					$pages.eq(next-2).animate({'left':pageWidth},500, opts.easing);
-				}
-
-				// dernière page, on anime puis on réduit le cadre (grace au callback)
-				else if(next == countPages){
-					flipNext(next, function(){
-						$pages.eq(next).animate({'left':pageWidth},500, opts.easing);
-						$wrapper.animate({'width': pageWidth}, 500, opts.easing);
-						$pageflip.css({'width':pageWidth});
-					});
-				}
-				// sinon anime normale
-				else {
-					flipNext(next);
-				};
-
-				// update de la pagination en head
-				updatePagination(next);
+			// User clicked the next button
+			else if($(this).is('.next')) {
+				var next = getNextPreviousPage('next'); // get next page number
+				//console.log('curPage: '+currentPage+' | NexPage: '+next);
+				flipNext(next);
 			}
+			return false; // don't let the browser's default click action occur
+		});
+
+
+		// Navigation using the controler
+		$('.jumpTo').click(function(){
+			var targetPage = parseInt($(this).text()) - 1;
+			targetPage = (targetPage % 2 == 0) ? targetPage : targetPage+1;
+			if(currentPage == targetPage) {
+				return false;
+			}
+			//console.log('current:'+currentPage+' | Target:'+targetPage)
+			jumpToPage(targetPage);
 			return false;
 		});
 
-		// rescale on window resize
-		var TO = false;
-		$(window).resize(function(){
-			if(TO !== false) {clearTimeout(TO);}
-			TO = setTimeout(scalePage, 200); //200 ms
-		});
-
+		// TODO : rescale on window resize
 		
-		// ##### TODO ##################################
-		// ajoute les boutons d'accès direct
-		// hover sur les boutons d'accès direct
-
 
 		// FUNCTIONS ---------------------------------------------------------------------------------------------------------
 
 		// calcule la page suivante ou précédente
+		// la page active (currentPage) est toujours celle de droite et paire, commençant à 0
 		function getNextPreviousPage(direction){
-			if(direction == 'previous') {
-				var newpage = (currentPage-2 <= 0) ? 0 : currentPage-2;
-			}
-
-			if(direction == 'next') {
-				var newpage = (currentPage+2 > countPages) ? 0 : currentPage+2;
-			}
-
-			return newpage;
+			if(direction == 'previous') {return (currentPage-2 <= 0) ? 0 : currentPage-2;} // prev active page is -2
+			if(direction == 'next') {return (currentPage+2 > countPages) ? 0 : currentPage+2;} // next active page is +2
 		};
 
-
+		
 		// passe à la page suivante
-		function flipNext(page, callback){
-			// anim page de droite
+		function flipNext(page){
+			// anim page actuelle de droite vers la gauche
 			$pages.eq(currentPage)
-			.css('z-index', 100)
+			.css('z-index', 1)
 			.animate({'width':0}, opts.speed, opts.easing, function(){
-				$(this).hide().css('z-index', 0);
+				$(this).hide().css({'z-index':0, 'width':pageWidth});
 			});
 
-			// anim page de gauche
+			// anim nouvelle page de gauche
 			$pages.eq(page-1)
-			.css({'width':0, 'left':pageWidth*2, 'z-index':101})
+			.css({'width':0, 'left':pageWidth*2, 'z-index':2})
 			.show()
 			.animate({'width':pageWidth, 'left':0}, opts.speed, opts.easing, function(){
-				if(typeof callback == 'function') {	callback();	} // callback optionnel
-				$pages.eq(page-3).hide().css('z-index', 0);
+				//$pages.eq(currentPage-3).hide().css('z-index', 0); // cache la page de gauche précédente -> page-3
+				$pages.filter(function(i){return i < currentPage+1;}).hide().css('z-index', 0); // cache la page de gauche précédente -> page-3
 				showShadow(page);
 				showNavButtons(page);
+				currentPage = page;
+				updatePagination(page);
+				//console.log('new curPage: '+currentPage);
 			});
 
 			// affichage de la nouvelle page de droite si ce n'est pas la dernière
 			if(page !== countPages) {
 				$pages.eq(page)
-				.css('left', pageWidth)
+				.css({'left':pageWidth, 'z-index':0})
 				.show();
 			}
 
-			currentPage = page;
 		};
 
 
 		// passe à la page précédente
-		function flipPrev(page, callback){
+		function flipPrev(page){
 			// fige l'ancienne page de droite
-			$pages.eq(page+2)
-			.css({'z-index':0}); // a faire dans le callback d'anim
+			$pages.eq(page+2).css({'z-index':0}); // a faire dans le callback d'anim
 
-			// anim page de droite
+			// anim nouvelle page de droite
 			$pages.eq(page)
-			.css({'width':0, 'left':0, 'z-index':102})
+			.css({'width':0, 'left':0, 'z-index':2})
 			.show()
 			.animate({'width':pageWidth, 'left':pageWidth}, opts.speed, opts.easing, function(){
-				if(typeof callback == 'function') {	callback(); } // callback optionnel
-				// supprime l'ancienne page de droite
-				$pages.eq(page+2).hide();
-				$pages.eq(page+1).hide();
+				// supprime les anciennes pages de droite
+				$pages.filter(function(i){return i > page;}).hide().css('z-index', 0);
 				showShadow(page);
 				showNavButtons(page);
+				currentPage = page;
+				updatePagination(page);
+				//console.log('new curPage: '+currentPage);
 			});
 
 			// anim page de gauche
-			$pages.eq(page+1)
-			.animate({'width':0, 'left':pageWidth}, opts.speed, opts.easing);
+			$pages.eq(currentPage-1)
+			.animate({'width':0, 'left':pageWidth}, opts.speed, opts.easing, function(){
+				$(this).hide().css({'width':pageWidth, 'left':0});
+			});
 
 			// affichage de la nouvelle page de gauche si ce n'est pas la première
-			if(page > 0) {
-				$pages.eq(page-1)
-				.css('left', 0)
-				.show();
+			if(page) {
+				$pages.eq(page-1).css({'left':0, 'z-index':0}).show();
 			}
+		};
 
-			currentPage = page;
+
+		// jump to a specific page
+		function jumpToPage(page){
+			// hide stuff before animating
+			hideControls();
+			$pages.css({'z-index':0}); // reset z-index on all pages
+
+			if(page > currentPage) {
+				//console.log('going to next: '+page);
+				flipNext(page);
+			}
+			else {
+				//console.log('going to prev: '+page);
+				flipPrev(page);
+			}
 		};
 
 
 		// affichage des bouton prev/next
 		function showNavButtons(page){
-			$buttonPrev.css({'top':(pageHeight/2)-25});
-			$buttonNext.css({'top':(pageHeight/2)-25});
+			$buttonPrev.css({'top':(pageHeight/2)-(prevHeight/2)});
+			$buttonNext.css({'top':(pageHeight/2)-(nextHeight/2)});
 			if(page != 0) {$buttonPrev.fadeIn();}
 			if(page != countPages) {$buttonNext.fadeIn();}
 		};
@@ -251,11 +237,19 @@
 		};
 
 
+		// hide controls while animating
+		function hideControls(){
+			$buttonPrev.hide();
+			$buttonNext.hide();
+			$shadow.fadeOut();
+		};
+
+
 		// update pagination
 		function updatePagination(page){
 			var pagetext;
 			if( page != 0 && page != countPages ) {
-				pagetext = page + '/' + parseInt(page+1);
+				pagetext = page + '-' + parseInt(page+1);
 			}
 			else if(page == 0) {
 				pagetext = '1';
@@ -265,47 +259,72 @@
 			}
 
 			$('.currentpage').text(pagetext);
+
+			// update pagination below the pageflip
+			$('.jumpTo').removeClass('active').eq(page).addClass('active');
+			if(page > 0){
+				var temp = (page % 2 != 0) ? page : page-1;
+				$('.jumpTo').eq(temp).addClass('active');
+			}
 		};
 
 
-		// scaling
-		// need bosser sur l'upscale + quand 2 pages actives ou 1 seule
+		// Downscaling to fit smaller screens. Only works on pageload for now.
+		// Maybe implement on resize and upscaling
 		function scalePage(){
-			var winHeight = $(window).height();
-			var winWidth = $(window).width();
+			var winHeight = $(window).height()-opts.vMargin;
+			var winWidth = $(window).width()-opts.hMargin;
+			// get real height of all elements
+			var realHeight = $wrapper.outerHeight(true) + $('#pageflip-header').outerHeight(true);
+			//var margin = realHeight - $wrapper.outerHeight();
+			var scale;
 
 			// pages plus hautes que le viewport
-			if(pageHeight > winHeight){
-				var scale = (winHeight-100) / pageHeight;
-				//pageWidth = $wrapper.width() == pageWidth ? pageWidth : pageWidth*2;
-				pageHeight = pageHeight*scale;
-				pageWidth = pageWidth*scale;
-				$images.width(pageWidth);
-				$images.height(pageHeight);
-				$wrapper.css({'width':pageWidth, 'height':pageHeight});
-				$pageflip.css({'width':pageWidth, 'height':pageHeight});
+			if(realHeight > winHeight){
+				scale = (winHeight) / (realHeight);
+				console.log("1 : "+scale);
 			}
 
 			if(pageWidth*2 > winWidth){
-				var scale = ((winWidth-100) / pageWidth) / 2;
-				alert(scale);
+				scale = (winWidth / pageWidth) / 2;
+				console.log("2 : "+scale);
+			}
+
+			if(realHeight > winHeight || pageWidth*2 > winWidth){
 				pageHeight = pageHeight*scale;
 				pageWidth = pageWidth*scale;
 				$images.width(pageWidth);
 				$images.height(pageHeight);
-				$wrapper.css({'width':pageWidth, 'height':pageHeight});
-				$pageflip.css({'width':pageWidth, 'height':pageHeight});
+				console.log("final : "+scale);
 			}
 		};
 
-		// on lance le script
-		$pages.hide();
-		scalePage();
-		$wrapper.css({'width':pageWidth, 'height':pageHeight});
-		$pageflip.css({'width':pageWidth, 'height':pageHeight});
-		$pages.eq(0).css('left', 0).fadeIn(opts.speed);
-		showNavButtons(0);
+		// initialise the plugin
+		function initPageflip(){
+			$pages.hide();
+			if(opts.resizeOnLoad) {scalePage();}
+
+			// no direct page access in the url OR 1st page OR out of bounds -> go to first page
+			if( urlParam == '' || ( urlParam == 1 || (urlParam < 1 && urlParam > countPages) ) ) {
+				$pages.eq(0).css('left', pageWidth).fadeIn(opts.speed);
+				showNavButtons(0);
+				updatePagination(0);
+			}
+
+			// direct page access in the url
+			else {
+				urlParam = parseInt(urlParam);
+				urlParam = (urlParam % 2 != 0) ? urlParam-1 : urlParam;
+				jumpToPage(urlParam);
+				updatePagination(urlParam);
+			}
+			//console.log('curPage: '+currentPage);
+		};
+		
 		// ------------------------------------------------------------------------------------------------------------------
+
+		// go !!!
+		initPageflip();
 
 	};// end of plugin... bye bye :)
 	
