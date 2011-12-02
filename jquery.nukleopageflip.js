@@ -4,6 +4,7 @@
  * Licensed under the MIT : http://www.opensource.org/licenses/mit-license.php
  *
  * Simple jQuery pageflip plugin
+ * Public repo on github : http://github.com/Nukleo/Nukleo-Pageflip
  *
  * For nicer animation transitions this plugin uses George Smith's easing plugin found at http://gsgd.co.uk/sandbox/jquery/easing/
  * but this is optional. If you don't use the easing plugin, you need to set the easing option to "swing" or "linear" which are included in jQuery
@@ -27,7 +28,7 @@
 			navOpacityEnd:		1,					// previous and next hover opacity
 			directNav:			true				// direct page navigation below the pageflip
 		};
-		
+
 		var opts = $.extend(defaults, options);
 		// ------------------------------------------------------------------------------------------------------------------
 
@@ -39,16 +40,14 @@
 		var $images = $('img', $pages);		// cache les images (peut etre pas utile)
 		var countPages = $pages.length;		// number of pages
 		var currentPage = 0;				// current page
-		var pageWidth = $images.width();	// largeur d'une page (calculé en fonction des images)
-		var pageHeight = $images.height();	// hauteur d'une page (calculé en fonction des images)
-		var urlParam = '';			// parametre d'url pour aller directement à une page
+		var pageWidth = $images.eq(0).width();	// largeur d'une page (calculé en fonction des images)
+		var pageHeight = $images.eq(0).height();	// hauteur d'une page (calculé en fonction des images)
+		var urlParam = '';					// parametre d'url pour aller directement à une page
 		// ------------------------------------------------------------------------------------------------------------------
 
 
 		// Set up some stuff ------------------------------------------------------------------------------------------------
 		// Set styles
-		$pageflip.css({'height': pageHeight, 'overflow':'hidden'});
-		$wrapper.css({'height': pageHeight, 'width':pageWidth*2});
 		$pages.css({'float':'none', 'position':'absolute'});
 
 		// Build, insert and hide navigation buttons
@@ -69,7 +68,7 @@
 		if(url != undefined){
 			urlParam = url;
 		}
-		
+
 		// Build and insert direct page nav
 		if(opts.directNav){
 			var $directNav = $('<div id="pageflip-directnav">').append('<ul>');
@@ -95,7 +94,7 @@
 		$('.navbutton').click(function(){
 			// hide stuff before animating
 			hideControls();
-			
+
 			// User clicked the previous button
 			if($(this).is('.previous')) {
 				var prev = getNextPreviousPage('previous'); // get previous page number
@@ -126,7 +125,7 @@
 		});
 
 		// TODO : rescale on window resize
-		
+
 
 		// FUNCTIONS ---------------------------------------------------------------------------------------------------------
 
@@ -137,7 +136,7 @@
 			if(direction == 'next') {return (currentPage+2 > countPages) ? 0 : currentPage+2;} // next active page is +2
 		};
 
-		
+
 		// passe à la page suivante
 		function flipNext(page){
 			// anim page actuelle de droite vers la gauche
@@ -301,11 +300,16 @@
 
 		// initialise the plugin
 		function initPageflip(){
-			$pages.hide();
-			if(opts.resizeOnLoad) {scalePage();}
+			$pageflip.css({'height': pageHeight, 'overflow':'hidden'});
+			$wrapper.css({'height': pageHeight, 'width':pageWidth*2});
 
 			// no direct page access in the url OR 1st page OR out of bounds -> go to first page
 			if( urlParam == '' || ( urlParam == 1 || (urlParam < 1 && urlParam > countPages) ) ) {
+				if(opts.resizeOnLoad) {
+					scalePage();
+					$wrapper.css({'width':pageWidth*2, 'height':pageHeight});
+					$pageflip.css({'width':pageWidth*2, 'height':pageHeight});
+				}
 				$pages.eq(0).css('left', pageWidth).fadeIn(opts.speed);
 				showNavButtons(0);
 				updatePagination(0);
@@ -315,17 +319,33 @@
 			else {
 				urlParam = parseInt(urlParam);
 				urlParam = (urlParam % 2 != 0) ? urlParam-1 : urlParam;
+				if(opts.resizeOnLoad) {
+					scalePage();
+					$wrapper.css({'width':pageWidth*2, 'height':pageHeight});
+					$pageflip.css({'width':pageWidth*2, 'height':pageHeight});
+				}
 				jumpToPage(urlParam);
 				updatePagination(urlParam);
 			}
 			//console.log('curPage: '+currentPage);
 		};
-		
+
+		// init the init...
+		function init(){
+			$pages.hide();
+			if(!$images[0].complete){
+				setTimeOut(init(), 200);
+			}
+			else {
+				initPageflip();
+			}
+		};
+
 		// ------------------------------------------------------------------------------------------------------------------
 
-		// go !!!
-		initPageflip();
+		// go!!!
+		init();
 
 	};// end of plugin... bye bye :)
-	
+
 })(jQuery);
