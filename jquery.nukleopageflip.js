@@ -48,7 +48,8 @@
 
 		// Set up some stuff ------------------------------------------------------------------------------------------------
 		// Set styles
-		$pages.css({'float':'none', 'position':'absolute'});
+		$pages.css({'float':'none', 'position':'absolute', 'opacity':0}); // set opacity to 0 so we can still get image size. if hide() was used, sizing would return 0.
+		$pageflip.css({'overflow':'hidden'});
 
 		// Build, insert and hide navigation buttons
 		var $buttonPrev = $('<a class="previous navbutton" href="#"><<</a>').hide();
@@ -266,7 +267,7 @@
 			pageWidth = $images.eq(0).width();	// largeur d'une page (calculé en fonction des images)
 			pageHeight = $images.eq(0).height();
 			$pages.hide().css({opacity:1});
-			$pageflip.css({'height': pageHeight, 'overflow':'hidden'});
+			$pageflip.css({'height': pageHeight});
 			$wrapper.css({'height': pageHeight, 'width':pageWidth*2});
 
 			// no direct page access in the url OR 1st page OR out of bounds -> go to first page
@@ -283,14 +284,13 @@
 				jumpToPage(urlParam);
 				updatePagination(urlParam);
 			}
-			//console.log('curPage: '+currentPage);
 		};
 
-		// init the init...
+		// init the init... Need to find a better way to do this
 		function init(){
-			$pages.css({opacity:0});
+			// loop as long as the first image is not fully loaded
 			if(!$images[0].complete){
-				setTimeout(init, 500);
+				setTimeout(init, 500); // 200 -> safari bugs on first page load :/
 			}
 			else {
 				$(loader).fadeOut();
