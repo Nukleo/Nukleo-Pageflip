@@ -54,9 +54,12 @@
 		// Build, insert and hide navigation buttons
 		var $buttonPrev = $('<a class="previous navbutton" href="#"><<</a>').hide();
 		var $buttonNext = $('<a class="next navbutton" href="#">>></a>').hide();
+
+		$wrapper.append($buttonPrev, $buttonNext);
+
 		var prevHeight = $buttonPrev.height();
 		var nextHeight = $buttonNext.height();
-		$wrapper.append($buttonPrev, $buttonNext);
+		var nextWidth = $buttonNext.width(); //To position left
 
 		// Build, insert and hide centerfold shadow
 		var $shadow = $('<div id="page-shadow">').css({'height':pageHeight, 'left':pageWidth-50, 'opacity':opts.shadowOpacity}).hide();
@@ -72,7 +75,7 @@
 		if(opts.directNav){
 			var $directNav = $('<div id="pageflip-directnav">').append('<ul>');
 			for(i=0; i<countPages; i++){
-				$('ul', $directNav).append('<li><a href="#" class="jumpTo">'+(i+1)+'</a></li>');
+				$('ul', $directNav).append('<li><a href="#'+(i+1)+'" class="jumpTo">'+(i+1)+'</a></li>');
 			}
 			$directNav.insertAfter($wrapper);
 		}
@@ -90,34 +93,38 @@
 
 
 		// Navigation with the previous and next buttons
-		$('.navbutton').click(function(){
+		$('.navbutton').click(function(e){
 			// hide stuff before animating
 			hideControls();
 
 			// User clicked the previous button
 			if($(this).is('.previous')) {
 				var prev = getNextPreviousPage('previous'); // get previous page number
+
 				flipPrev(prev);
 			}
 
 			// User clicked the next button
 			else if($(this).is('.next')) {
 				var next = getNextPreviousPage('next'); // get next page number
+
 				flipNext(next);
 			}
-			return false; // don't let the browser's default click action occur
+
+			e.stopPropagation();
 		});
 
 
 		// Navigation using the controler
-		$('.jumpTo').click(function(){
+		$('.jumpTo').click(function(e){
 			var targetPage = parseInt($(this).text()) - 1;
 			targetPage = (targetPage % 2 == 0) ? targetPage : targetPage+1;
 			if(currentPage == targetPage) {
-				return false;
+				e.stopPropagation();
 			}
 			jumpToPage(targetPage);
-			return false;
+			e.stopPropagation();
+
 		});
 
 
@@ -214,7 +221,7 @@
 		function showNavButtons(page){
 			if(opts.showNav){
 				$buttonPrev.css({'top':(pageHeight/2)-(prevHeight/2)});
-				$buttonNext.css({'top':(pageHeight/2)-(nextHeight/2)});
+				$buttonNext.css({'top':(pageHeight/2)-(nextHeight/2), 'left' : pageWidth * 2 - (nextWidth) - 2});
 				if(page != 0) {$buttonPrev.fadeIn();}
 				if(page != countPages) {$buttonNext.fadeIn();}
 			}
@@ -257,6 +264,10 @@
 			if(page > 0){
 				var temp = (page % 2 != 0) ? page : page-1;
 				$('.jumpTo').eq(temp).addClass('active');
+
+				//Setting links
+				$('.previous').attr('href', '#' + (page - 2));
+				$('.next').attr('href', '#' + (page + 2));
 			}
 		};
 
@@ -284,10 +295,12 @@
 				jumpToPage(urlParam);
 				updatePagination(urlParam);
 			}
+
 		};
 
 		// init the init... Need to find a better way to do this
 		function init(){
+			
 			// loop as long as the first image is not fully loaded
 			if(!$images[0].complete){
 				setTimeout(init, 500); // 200 -> safari bugs on first page load :/
@@ -296,6 +309,7 @@
 				$(loader).fadeOut();
 				initPageflip();
 			}
+
 		};
 
 		// ------------------------------------------------------------------------------------------------------------------
